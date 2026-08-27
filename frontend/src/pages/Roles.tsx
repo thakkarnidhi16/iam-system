@@ -4,7 +4,6 @@ interface Role {
   id: number;
   name: string;
   description: string;
-  created_at: string;
 }
 
 interface Permission {
@@ -15,65 +14,56 @@ interface Permission {
 
 function Roles() {
   const [roles, setRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
 
-  const [selectedRole, setSelectedRole] =
-    useState<Role | null>(null);
+  const [rolePermissions, setRolePermissions] = useState<
+    Record<number, Permission[]>
+  >({});
 
   const [loading, setLoading] = useState(true);
-  const [permissionsLoading, setPermissionsLoading] =
-    useState(false);
 
   const [message, setMessage] = useState('');
 
-  // Get all roles
-  useEffect(() => {
-    const getRoles = async () => {
-      try {
-        const response = await fetch(
-          'http://localhost:3000/roles',
-          {
-            method: 'GET',
-            credentials: 'include'
-          }
-        );
+  // ---------------------------------------------
+  // Get permissions for a role
+  // ---------------------------------------------
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          setMessage(
-            data.message || 'Failed to retrieve roles'
-          );
-          return;
-        }
-
-        setRoles(data.roles);
-
-      } catch (error) {
-        console.error(error);
-
-        setMessage(
-          'Unable to connect to the server'
-        );
-
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getRoles();
-  }, []);
-
-  // Get permissions for selected role
-  const handleRoleClick = async (role: Role) => {
-    setSelectedRole(role);
-    setPermissions([]);
-    setPermissionsLoading(true);
-    setMessage('');
-
+  const getRolePermissions = async (
+    roleId: number
+  ) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/roles/${role.id}/permissions`,
+        `http://localhost:3000/roles/${roleId}/permissions`,
+        {
+          method: 'GET',
+          credentials: 'include'
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(data.message);
+        return;
+      }
+
+      setRolePermissions((previous) => ({
+        ...previous,
+        [roleId]: data.permissions
+      }));
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // ---------------------------------------------
+  // Get all roles
+  // ---------------------------------------------
+
+  const getRoles = async () => {
+    try {
+      const response = await fetch(
+        'http://localhost:3000/roles',
         {
           method: 'GET',
           credentials: 'include'
@@ -85,12 +75,20 @@ function Roles() {
       if (!response.ok) {
         setMessage(
           data.message ||
-          'Failed to retrieve permissions'
+          'Failed to retrieve roles'
         );
+
         return;
       }
 
-      setPermissions(data.permissions);
+      setRoles(data.roles);
+
+      // Get permissions for every role
+      await Promise.all(
+        data.roles.map((role: Role) =>
+          getRolePermissions(role.id)
+        )
+      );
 
     } catch (error) {
       console.error(error);
@@ -98,15 +96,33 @@ function Roles() {
       setMessage(
         'Unable to connect to the server'
       );
-
-    } finally {
-      setPermissionsLoading(false);
     }
   };
+
+  // ---------------------------------------------
+  // Load page
+  // ---------------------------------------------
+
+  useEffect(() => {
+    const loadData = async () => {
+      await getRoles();
+      setLoading(false);
+    };
+
+    loadData();
+  }, []);
+
+  // ---------------------------------------------
+  // Loading
+  // ---------------------------------------------
 
   if (loading) {
     return <p>Loading roles...</p>;
   }
+
+  // ---------------------------------------------
+  // UI
+  // ---------------------------------------------
 
   return (
     <div>
@@ -117,84 +133,72 @@ function Roles() {
         <p>{message}</p>
       )}
 
-      <h2>Available Roles</h2>
-
       {roles.length === 0 ? (
+
         <p>No roles found.</p>
+
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Description</th>
-            </tr>
-          </thead>
 
-          <tbody>
-            {roles.map((role) => (
-              <tr
-                key={role.id}
-                onClick={() =>
-                  handleRoleClick(role)
-                }
-                style={{
-                  cursor: 'pointer'
-                }}
-              >
-                <td>{role.id}</td>
+        roles.map((role) => {
 
-                <td>
-                  {role.name}
-                </td>
+          const permissions =
+            rolePermissions[role.id] || [];
 
-                <td>
-                  {role.description}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+          return (
+            <div key={role.id}>
 
-      <br />
+              <hr />
 
-      {selectedRole && (
-        <div>
+              <h2>
+                {role.name}
+              </h2>
 
-          <h2>
-            {selectedRole.name} Permissions
-          </h2>
+              <p>
+                {role.description}
+              </p>
 
-          <p>
-            {selectedRole.description}
-          </p>
+              <h3>
+                Permissions
+              </h3>
 
-          {permissionsLoading ? (
-            <p>
-              Loading permissions...
-            </p>
-          ) : permissions.length === 0 ? (
-            <p>
-              This role has no permissions.
-            </p>
-          ) : (
-            <ul>
-              {permissions.map((permission) => (
-                <li key={permission.id}>
-                  <strong>
-                    {permission.name}
-                  </strong>
+              {permissions.length === 0 ? (
 
-                  {' — '}
+                <p>
+                  No permissions assigned
+                </p>
 
-                  {permission.description}
-                </li>
-              ))}
-            </ul>
-          )}
+              ) : (
 
-        </div>
+                <ul>
+
+                  {permissions.map(
+                    (permission) => (
+
+                      <li
+                        key={permission.id}
+                      >
+                        <strong>
+                          {permission.name}
+                        </strong>
+
+                        {' — '}
+
+                        {permission.description}
+
+                      </li>
+
+                    )
+                  )}
+
+                </ul>
+
+              )}
+
+            </div>
+          );
+
+        })
+
       )}
 
     </div>

@@ -1,12 +1,67 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Users from './pages/Users';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Link
+} from 'react-router-dom';
+
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Users from './pages/Users';
 import Roles from './pages/Roles';
 
+import ProtectedRoute from './ProtectedRoute';
+
+import { useAuth } from './auth/AuthContext';
+
 function App() {
+
+  const {
+    user,
+    hasPermission,
+    logout
+  } = useAuth();
+
   return (
+
     <BrowserRouter>
+
+      {user && (
+
+        <nav>
+
+          <Link to="/dashboard">
+            Dashboard
+          </Link>
+
+          {' | '}
+
+          {hasPermission('view_users') && (
+            <Link to="/users">
+              Users
+            </Link>
+          )}
+
+          {' | '}
+
+          {hasPermission('view_roles') && (
+            <Link to="/roles">
+              Roles
+            </Link>
+          )}
+
+          {' | '}
+
+          <button onClick={logout}>
+            Logout
+          </button>
+
+        </nav>
+
+      )}
+
+      {user && <hr />}
+
       <Routes>
 
         <Route
@@ -21,20 +76,33 @@ function App() {
 
         <Route
           path="/dashboard"
-          element={<Dashboard />}
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
         />
 
         <Route
           path="/users"
-          element={<Users />}
+          element={
+            <ProtectedRoute>
+              <Users />
+            </ProtectedRoute>
+          }
         />
 
         <Route
           path="/roles"
-          element={<Roles />}
+          element={
+            <ProtectedRoute>
+              <Roles />
+            </ProtectedRoute>
+          }
         />
 
       </Routes>
+
     </BrowserRouter>
   );
 }

@@ -267,8 +267,27 @@ export async function getMe(
       return;
     }
 
+    // Get permissions belonging to the user's roles
+    const permissionResult = await db.query(
+      `
+      SELECT DISTINCT
+        p.id,
+        p.name,
+        p.description
+      FROM permissions p
+      JOIN role_permissions rp
+        ON p.id = rp.permission_id
+      JOIN user_roles ur
+        ON rp.role_id = ur.role_id
+      WHERE ur.user_id = $1
+      ORDER BY p.name
+      `,
+      [req.session.userId]
+    );
+
     res.status(200).json({
-      user
+      user,
+      permissions: permissionResult.rows
     });
 
   } catch (error) {

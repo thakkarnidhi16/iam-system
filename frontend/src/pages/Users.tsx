@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
 
 interface User {
   id: number;
@@ -21,6 +22,11 @@ interface Permission {
 }
 
 function Users() {
+
+  const {
+    hasPermission
+  } = useAuth();
+
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
 
@@ -37,6 +43,9 @@ function Users() {
   const [loading, setLoading] = useState(true);
 
   // Create user form
+  const [showCreateForm, setShowCreateForm] =
+    useState(false);
+
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -56,7 +65,9 @@ function Users() {
   const getRolePermissions = async (
     roleId: number
   ) => {
+
     try {
+
       const response = await fetch(
         `http://localhost:3000/roles/${roleId}/permissions`,
         {
@@ -68,7 +79,9 @@ function Users() {
       const data = await response.json();
 
       if (!response.ok) {
+
         console.error(data.message);
+
         return;
       }
 
@@ -78,7 +91,9 @@ function Users() {
       }));
 
     } catch (error) {
+
       console.error(error);
+
     }
   };
 
@@ -89,7 +104,9 @@ function Users() {
   const getUserRoles = async (
     userId: number
   ) => {
+
     try {
+
       const response = await fetch(
         `http://localhost:3000/users/${userId}/roles`,
         {
@@ -101,11 +118,14 @@ function Users() {
       const data = await response.json();
 
       if (!response.ok) {
+
         console.error(data.message);
+
         return;
       }
 
-      const rolesForUser: Role[] = data.roles;
+      const rolesForUser: Role[] =
+        data.roles;
 
       // Store user's roles
       setUserRoles((previous) => ({
@@ -121,7 +141,9 @@ function Users() {
       );
 
     } catch (error) {
+
       console.error(error);
+
     }
   };
 
@@ -130,7 +152,9 @@ function Users() {
   // --------------------------------------------------
 
   const getUsers = async () => {
+
     try {
+
       const response = await fetch(
         'http://localhost:3000/users',
         {
@@ -142,6 +166,7 @@ function Users() {
       const data = await response.json();
 
       if (!response.ok) {
+
         setMessage(
           data.message ||
           'Failed to retrieve users'
@@ -160,6 +185,7 @@ function Users() {
       );
 
     } catch (error) {
+
       console.error(error);
 
       setMessage(
@@ -173,7 +199,9 @@ function Users() {
   // --------------------------------------------------
 
   const getRoles = async () => {
+
     try {
+
       const response = await fetch(
         'http://localhost:3000/roles',
         {
@@ -185,6 +213,7 @@ function Users() {
       const data = await response.json();
 
       if (!response.ok) {
+
         setMessage(
           data.message ||
           'Failed to retrieve roles'
@@ -196,6 +225,7 @@ function Users() {
       setRoles(data.roles);
 
     } catch (error) {
+
       console.error(error);
 
       setMessage(
@@ -209,6 +239,7 @@ function Users() {
   // --------------------------------------------------
 
   useEffect(() => {
+
     const loadData = async () => {
 
       await Promise.all([
@@ -217,9 +248,11 @@ function Users() {
       ]);
 
       setLoading(false);
+
     };
 
     loadData();
+
   }, []);
 
   // --------------------------------------------------
@@ -229,11 +262,13 @@ function Users() {
   const handleCreateUser = async (
     event: React.FormEvent
   ) => {
+
     event.preventDefault();
 
     setMessage('');
 
     try {
+
       const response = await fetch(
         'http://localhost:3000/users',
         {
@@ -257,6 +292,7 @@ function Users() {
       const data = await response.json();
 
       if (!response.ok) {
+
         setMessage(
           data.message ||
           'Failed to create user'
@@ -269,14 +305,20 @@ function Users() {
         'User created successfully'
       );
 
+      // Clear form
       setFirstName('');
       setLastName('');
       setEmail('');
       setPassword('');
 
+      // Hide form
+      setShowCreateForm(false);
+
+      // Refresh users
       await getUsers();
 
     } catch (error) {
+
       console.error(error);
 
       setMessage(
@@ -293,16 +335,22 @@ function Users() {
     userId: number
   ) => {
 
-    const roleId = selectedRoles[userId];
+    const roleId =
+      selectedRoles[userId];
 
     if (!roleId) {
-      setMessage('Please select a role');
+
+      setMessage(
+        'Please select a role'
+      );
+
       return;
     }
 
     setMessage('');
 
     try {
+
       const response = await fetch(
         `http://localhost:3000/users/${userId}/roles`,
         {
@@ -323,6 +371,7 @@ function Users() {
       const data = await response.json();
 
       if (!response.ok) {
+
         setMessage(
           data.message ||
           'Failed to assign role'
@@ -336,7 +385,7 @@ function Users() {
         'Role assigned successfully'
       );
 
-      // Refresh user's roles and permissions
+      // Refresh user's roles
       await getUserRoles(userId);
 
       // Clear dropdown
@@ -346,6 +395,7 @@ function Users() {
       }));
 
     } catch (error) {
+
       console.error(error);
 
       setMessage(
@@ -359,7 +409,12 @@ function Users() {
   // --------------------------------------------------
 
   if (loading) {
-    return <p>Loading users...</p>;
+
+    return (
+      <p>
+        Loading users...
+      </p>
+    );
   }
 
   // --------------------------------------------------
@@ -367,99 +422,184 @@ function Users() {
   // --------------------------------------------------
 
   return (
+
     <div>
 
       <h1>Users</h1>
 
       {message && (
-        <p>{message}</p>
+        <p>
+          {message}
+        </p>
       )}
 
-      {/* --------------------------------------------- */}
-      {/* Create User */}
-      {/* --------------------------------------------- */}
+      {/* ================================================= */}
+      {/* CREATE USER */}
+      {/* ================================================= */}
 
-      <h2>Create User</h2>
-
-      <form onSubmit={handleCreateUser}>
+      {hasPermission('create_users') && (
 
         <div>
-          <label>First Name</label>
-          <br />
 
-          <input
-            type="text"
-            value={firstName}
-            onChange={(event) =>
-              setFirstName(event.target.value)
-            }
-          />
+          {!showCreateForm ? (
+
+            <button
+              onClick={() =>
+                setShowCreateForm(true)
+              }
+            >
+              + Create User
+            </button>
+
+          ) : (
+
+            <div>
+
+              <h2>
+                Create User
+              </h2>
+
+              <form
+                onSubmit={
+                  handleCreateUser
+                }
+              >
+
+                <div>
+
+                  <label>
+                    First Name
+                  </label>
+
+                  <br />
+
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(event) =>
+                      setFirstName(
+                        event.target.value
+                      )
+                    }
+                  />
+
+                </div>
+
+                <br />
+
+                <div>
+
+                  <label>
+                    Last Name
+                  </label>
+
+                  <br />
+
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(event) =>
+                      setLastName(
+                        event.target.value
+                      )
+                    }
+                  />
+
+                </div>
+
+                <br />
+
+                <div>
+
+                  <label>
+                    Email
+                  </label>
+
+                  <br />
+
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) =>
+                      setEmail(
+                        event.target.value
+                      )
+                    }
+                  />
+
+                </div>
+
+                <br />
+
+                <div>
+
+                  <label>
+                    Password
+                  </label>
+
+                  <br />
+
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(event) =>
+                      setPassword(
+                        event.target.value
+                      )
+                    }
+                  />
+
+                </div>
+
+                <br />
+
+                <button type="submit">
+                  Create User
+                </button>
+
+                {' '}
+
+                <button
+                  type="button"
+                  onClick={() => {
+
+                    setShowCreateForm(false);
+
+                    setFirstName('');
+                    setLastName('');
+                    setEmail('');
+                    setPassword('');
+
+                  }}
+                >
+                  Cancel
+                </button>
+
+              </form>
+
+            </div>
+
+          )}
+
         </div>
 
-        <br />
-
-        <div>
-          <label>Last Name</label>
-          <br />
-
-          <input
-            type="text"
-            value={lastName}
-            onChange={(event) =>
-              setLastName(event.target.value)
-            }
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>Email</label>
-          <br />
-
-          <input
-            type="email"
-            value={email}
-            onChange={(event) =>
-              setEmail(event.target.value)
-            }
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>Password</label>
-          <br />
-
-          <input
-            type="password"
-            value={password}
-            onChange={(event) =>
-              setPassword(event.target.value)
-            }
-          />
-        </div>
-
-        <br />
-
-        <button type="submit">
-          Create User
-        </button>
-
-      </form>
+      )}
 
       <br />
 
-      {/* --------------------------------------------- */}
-      {/* Users */}
-      {/* --------------------------------------------- */}
+      {/* ================================================= */}
+      {/* USERS */}
+      {/* ================================================= */}
 
-      <h2>All Users</h2>
+      <h2>
+        All Users
+      </h2>
 
       {users.length === 0 ? (
 
-        <p>No users found.</p>
+        <p>
+          No users found.
+        </p>
 
       ) : (
 
@@ -468,13 +608,41 @@ function Users() {
           <thead>
 
             <tr>
-              <th>ID</th>
-              <th>First Name</th>
-              <th>Last Name</th>
-              <th>Email</th>
-              <th>Current Roles</th>
-              <th>Permissions</th>
-              <th>Assign Role</th>
+
+              <th>
+                ID
+              </th>
+
+              <th>
+                First Name
+              </th>
+
+              <th>
+                Last Name
+              </th>
+
+              <th>
+                Email
+              </th>
+
+              <th>
+                Current Roles
+              </th>
+
+              <th>
+                Permissions
+              </th>
+
+              {hasPermission(
+                'assign_roles'
+              ) && (
+
+                <th>
+                  Assign Role
+                </th>
+
+              )}
+
             </tr>
 
           </thead>
@@ -487,61 +655,87 @@ function Users() {
                 userRoles[user.id] || [];
 
               /*
-               * Combine permissions from all
-               * of the user's roles.
+               * Combine permissions from
+               * all of the user's roles.
                */
-              const permissions = currentRoles.flatMap(
-                (role) =>
-                  rolePermissions[role.id] || []
-              );
+
+              const permissions =
+                currentRoles.flatMap(
+                  (role) =>
+                    rolePermissions[
+                      role.id
+                    ] || []
+                );
 
               /*
                * Remove duplicate permissions.
                */
-              const uniquePermissions = permissions.filter(
-                (permission, index, array) =>
-                  index ===
-                  array.findIndex(
-                    (item) =>
-                      item.id === permission.id
-                  )
-              );
+
+              const uniquePermissions =
+                permissions.filter(
+                  (
+                    permission,
+                    index,
+                    array
+                  ) =>
+                    index ===
+                    array.findIndex(
+                      (item) =>
+                        item.id ===
+                        permission.id
+                    )
+                );
 
               return (
 
-                <tr key={user.id}>
+                <tr
+                  key={user.id}
+                >
+
+                  {/* ID */}
 
                   <td>
                     {user.id}
                   </td>
 
+                  {/* First Name */}
+
                   <td>
                     {user.first_name}
                   </td>
+
+                  {/* Last Name */}
 
                   <td>
                     {user.last_name}
                   </td>
 
+                  {/* Email */}
+
                   <td>
                     {user.email}
                   </td>
 
-                  {/* -------------------------------- */}
-                  {/* Current Roles */}
-                  {/* -------------------------------- */}
+                  {/* ================================= */}
+                  {/* CURRENT ROLES */}
+                  {/* ================================= */}
 
                   <td>
 
-                    {currentRoles.length > 0 ? (
+                    {currentRoles.length >
+                    0 ? (
 
-                      currentRoles.map((role) => (
+                      currentRoles.map(
+                        (role) => (
 
-                        <div key={role.id}>
-                          {role.name}
-                        </div>
+                          <div
+                            key={role.id}
+                          >
+                            {role.name}
+                          </div>
 
-                      ))
+                        )
+                      )
 
                     ) : (
 
@@ -553,21 +747,28 @@ function Users() {
 
                   </td>
 
-                  {/* -------------------------------- */}
-                  {/* Permissions */}
-                  {/* -------------------------------- */}
+                  {/* ================================= */}
+                  {/* PERMISSIONS */}
+                  {/* ================================= */}
 
                   <td>
 
-                    {uniquePermissions.length > 0 ? (
+                    {uniquePermissions.length >
+                    0 ? (
 
                       uniquePermissions.map(
                         (permission) => (
 
                           <div
-                            key={permission.id}
+                            key={
+                              permission.id
+                            }
                           >
-                            ✓ {permission.name}
+
+                            ✓{' '}
+
+                            {permission.name}
+
                           </div>
 
                         )
@@ -583,67 +784,85 @@ function Users() {
 
                   </td>
 
-                  {/* -------------------------------- */}
-                  {/* Assign Role */}
-                  {/* -------------------------------- */}
+                  {/* ================================= */}
+                  {/* ASSIGN ROLE */}
+                  {/* ================================= */}
 
-                  <td>
+                  {hasPermission(
+                    'assign_roles'
+                  ) && (
 
-                    <select
-                      value={
-                        selectedRoles[user.id] || ''
-                      }
-                      onChange={(event) =>
-                        setSelectedRoles({
-                          ...selectedRoles,
-                          [user.id]:
-                            Number(
-                              event.target.value
+                    <td>
+
+                      <select
+                        value={
+                          selectedRoles[
+                            user.id
+                          ] || ''
+                        }
+                        onChange={(event) =>
+                          setSelectedRoles({
+                            ...selectedRoles,
+
+                            [user.id]:
+                              Number(
+                                event.target
+                                  .value
+                              )
+                          })
+                        }
+                      >
+
+                        <option value="">
+                          Select role
+                        </option>
+
+                        {roles
+                          .filter(
+                            (role) => {
+
+                              return !currentRoles.some(
+                                (currentRole) =>
+                                  currentRole.id ===
+                                  role.id
+                              );
+
+                            }
+                          )
+                          .map(
+                            (role) => (
+
+                              <option
+                                key={
+                                  role.id
+                                }
+                                value={
+                                  role.id
+                                }
+                              >
+                                {role.name}
+                              </option>
+
                             )
-                        })
-                      }
-                    >
+                          )}
 
-                      <option value="">
-                        Select role
-                      </option>
+                      </select>
 
-                      {roles
-                        .filter((role) => {
+                      {' '}
 
-                          return !currentRoles.some(
-                            (currentRole) =>
-                              currentRole.id ===
-                              role.id
-                          );
+                      <button
+                        onClick={() =>
+                          handleAssignRole(
+                            user.id
+                          )
+                        }
+                      >
+                        Assign Role
+                      </button>
 
-                        })
-                        .map((role) => (
+                    </td>
 
-                          <option
-                            key={role.id}
-                            value={role.id}
-                          >
-                            {role.name}
-                          </option>
-
-                        ))}
-
-                    </select>
-
-                    {' '}
-
-                    <button
-                      onClick={() =>
-                        handleAssignRole(
-                          user.id
-                        )
-                      }
-                    >
-                      Assign Role
-                    </button>
-
-                  </td>
+                  )}
 
                 </tr>
 
