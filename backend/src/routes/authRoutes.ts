@@ -7,7 +7,9 @@ import {
   login,
   changePassword,
   getMe,
-  logout
+  logout,
+  forgotPasswordController,
+  resetPasswordController
 } from '../controllers/authController';
 
 const router = Router();
@@ -33,4 +35,13 @@ router.get(
   getMe
 );
 
+router.post(
+  '/forgot-password',
+  forgotPasswordController
+);
+
+router.post(
+  '/reset-password',
+  resetPasswordController
+);
 export default router;

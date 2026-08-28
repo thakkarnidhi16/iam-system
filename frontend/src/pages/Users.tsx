@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
-
+import { API_URL } from '../config/api';
 interface User {
   id: number;
   first_name: string;
@@ -69,7 +69,7 @@ function Users() {
     try {
 
       const response = await fetch(
-        `http://localhost:3000/roles/${roleId}/permissions`,
+        `${API_URL}/roles/${roleId}/permissions`,
         {
           method: 'GET',
           credentials: 'include'
@@ -108,7 +108,7 @@ function Users() {
     try {
 
       const response = await fetch(
-        `http://localhost:3000/users/${userId}/roles`,
+        `${API_URL}/users/${userId}/roles`,
         {
           method: 'GET',
           credentials: 'include'
@@ -156,7 +156,7 @@ function Users() {
     try {
 
       const response = await fetch(
-        'http://localhost:3000/users',
+        `${API_URL}/users`,
         {
           method: 'GET',
           credentials: 'include'
@@ -203,7 +203,7 @@ function Users() {
     try {
 
       const response = await fetch(
-        'http://localhost:3000/roles',
+        `${API_URL}/roles`,
         {
           method: 'GET',
           credentials: 'include'
@@ -270,7 +270,7 @@ function Users() {
     try {
 
       const response = await fetch(
-        'http://localhost:3000/users',
+        `${API_URL}/users`,
         {
           method: 'POST',
 
@@ -352,7 +352,7 @@ function Users() {
     try {
 
       const response = await fetch(
-        `http://localhost:3000/users/${userId}/roles`,
+       `${API_URL}/users/${userId}/roles`,
         {
           method: 'POST',
 

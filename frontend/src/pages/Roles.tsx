@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_URL } from '../config/api';
 
 interface Role {
   id: number;
@@ -32,7 +33,7 @@ function Roles() {
   ) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/roles/${roleId}/permissions`,
+        `${API_URL}/roles/${roleId}/permissions`,
         {
           method: 'GET',
           credentials: 'include'
@@ -63,7 +64,7 @@ function Roles() {
   const getRoles = async () => {
     try {
       const response = await fetch(
-        'http://localhost:3000/roles',
+        `${API_URL}/roles`,
         {
           method: 'GET',
           credentials: 'include'

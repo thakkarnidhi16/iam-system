@@ -9,6 +9,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Roles from './pages/Roles';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 import ProtectedRoute from './ProtectedRoute';
 
@@ -100,6 +102,15 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/forgot-password"
+          element={<ForgotPassword />}
+        />
+
+        <Route
+      path="/reset-password"
+      element={<ResetPassword />}
+      />
 
       </Routes>
 

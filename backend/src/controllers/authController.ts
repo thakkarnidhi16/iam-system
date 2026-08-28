@@ -1,10 +1,14 @@
 import { Request, Response } from 'express';
 import {
   registerUser,
-  loginUser
+  loginUser,
+  forgotPassword,
+  resetPassword
 } from '../services/authService';
 
 import { db } from '../database/db';
+
+
 
 import {
   changeUserPassword
@@ -296,6 +300,141 @@ export async function getMe(
 
     res.status(500).json({
       message: 'Failed to retrieve current user'
+    });
+  }
+}
+
+export async function forgotPasswordController(
+  req: Request,
+  res: Response
+): Promise<void> {
+
+  try {
+
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({
+        message: 'Email is required'
+      });
+
+      return;
+    }
+
+    await forgotPassword(email);
+
+    /*
+     * Always return the same response.
+     *
+     * We don't tell the user whether
+     * the email exists.
+     */
+    res.status(200).json({
+      message:
+        'If an account exists with that email, a password reset link has been sent.'
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    /*
+     * Don't expose SMTP/database details
+     * to the client.
+     */
+    res.status(500).json({
+      message:
+        'Unable to process password reset request'
+    });
+  }
+}
+
+export async function resetPasswordController(
+  req: Request,
+  res: Response
+): Promise<void> {
+
+  try {
+
+    const {
+      token,
+      newPassword
+    } = req.body;
+
+    if (!token || !newPassword) {
+      res.status(400).json({
+        message:
+          'Token and new password are required'
+      });
+
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({
+        message:
+          'New password must be at least 8 characters'
+      });
+
+      return;
+    }
+
+    await resetPassword(
+      token,
+      newPassword
+    );
+
+    res.status(200).json({
+      message:
+        'Password reset successfully'
+    });
+
+  } catch (error) {
+
+    if (
+      error instanceof Error &&
+      error.message === 'INVALID_RESET_TOKEN'
+    ) {
+
+      res.status(400).json({
+        message:
+          'Invalid password reset token'
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === 'RESET_TOKEN_ALREADY_USED'
+    ) {
+
+      res.status(400).json({
+        message:
+          'Password reset token has already been used'
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === 'RESET_TOKEN_EXPIRED'
+    ) {
+
+      res.status(400).json({
+        message:
+          'Password reset token has expired'
+      });
+
+      return;
+    }
+
+    console.error(error);
+
+    res.status(500).json({
+      message:
+        'Unable to reset password'
     });
   }
 }

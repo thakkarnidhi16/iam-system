@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_URL } from '../config/api';
 
 interface User {
   id: number;
@@ -16,7 +17,7 @@ function Dashboard() {
     const getCurrentUser = async () => {
       try {
         const response = await fetch(
-          'http://localhost:3000/auth/me',
+          `${API_URL}/auth/me`,
           {
             method: 'GET',
             credentials: 'include'
@@ -49,7 +50,7 @@ function Dashboard() {
   const handleLogout = async () => {
     try {
       const response = await fetch(
-        'http://localhost:3000/auth/logout',
+        `${API_URL}/auth/logout`,
         {
           method: 'POST',
           credentials: 'include'

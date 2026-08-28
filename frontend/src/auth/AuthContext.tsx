@@ -5,6 +5,8 @@ import {
   useState
 } from 'react';
 
+import { API_URL } from '../config/api';
+
 interface User {
   id: number;
   first_name: string;
@@ -52,7 +54,7 @@ export function AuthProvider({
     try {
 
       const response = await fetch(
-        'http://localhost:3000/auth/me',
+        `${API_URL}/auth/me`,
         {
           method: 'GET',
           credentials: 'include'
@@ -104,7 +106,7 @@ export function AuthProvider({
     try {
 
       await fetch(
-        'http://localhost:3000/auth/logout',
+        `${API_URL}/auth/logout`,
         {
           method: 'POST',
           credentials: 'include'
