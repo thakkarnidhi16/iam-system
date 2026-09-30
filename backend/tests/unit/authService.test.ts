@@ -61,7 +61,6 @@ describe('loginUser', () => {
     vi.spyOn(argon2, 'verify')
       .mockResolvedValue(true);
 
-
     const result = await loginUser({
       email: 'nidhi@email.com',
       password: 'Password123'
