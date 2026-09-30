@@ -69,7 +69,7 @@ describe('loginUser', () => {
 
     expect(result).toEqual({
       id: 4,
-      first_name: 'Nidhi23234',
+      first_name: 'Nidhi',
       last_name: 'Thakkar',
       email: 'nidhi@email.com'
     });
