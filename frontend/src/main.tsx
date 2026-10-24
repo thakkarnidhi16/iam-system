@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-
+import { Toaster } from 'sonner';
 import App from './App';
 
 import { AuthProvider } from './auth/AuthContext';
@@ -15,6 +15,7 @@ ReactDOM.createRoot(
 
     <AuthProvider>
       <App />
+      <Toaster richColors position="top-right" />
     </AuthProvider>
 
   </React.StrictMode>
