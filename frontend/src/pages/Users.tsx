@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, X, ChevronRight, LoaderCircle, Users as UsersIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '../auth/AuthContext';
 import { API_URL } from '../config/api';
+import RoleBadge from '../components/RoleBadge';
+
+
 interface User {
   id: number;
   first_name: string;
@@ -12,870 +18,383 @@ interface User {
 interface Role {
   id: number;
   name: string;
-  description: string;
 }
 
-interface Permission {
-  id: number;
-  name: string;
-  description: string;
-}
+
+
+// Shared input style, so all form fields look the same
+const inputClass =
+  'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100';
 
 function Users() {
-
-  const {
-    hasPermission
-  } = useAuth();
+  const { hasPermission } = useAuth();
 
   const [users, setUsers] = useState<User[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
-
-  // Roles belonging to each user
-  const [userRoles, setUserRoles] = useState<
-    Record<number, Role[]>
-  >({});
-
-  // Permissions belonging to each role
-  const [rolePermissions, setRolePermissions] = useState<
-    Record<number, Permission[]>
-  >({});
-
+  const [userRoles, setUserRoles] = useState<Record<number, Role[]>>({});
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
-  // Create user form
-  const [showCreateForm, setShowCreateForm] =
-    useState(false);
-
+  // Create user modal
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Selected role for each user
-  const [selectedRoles, setSelectedRoles] = useState<
-    Record<number, number>
-  >({});
-
-  const [message, setMessage] = useState('');
-
-  // --------------------------------------------------
-  // Get permissions for a role
-  // --------------------------------------------------
-
-  const getRolePermissions = async (
-    roleId: number
-  ) => {
-
+  // Fetch the roles assigned to one user
+  const getUserRoles = async (userId: number) => {
     try {
-
-      const response = await fetch(
-        `${API_URL}/roles/${roleId}/permissions`,
-        {
-          method: 'GET',
-          credentials: 'include'
-        }
-      );
-
-      const data = await response.json();
+      const response = await fetch(`${API_URL}/users/${userId}/roles`, {
+        method: 'GET',
+        credentials: 'include',
+      });
 
       if (!response.ok) {
-
-        console.error(data.message);
-
+        console.error(`Failed to fetch roles for user ${userId}`);
         return;
       }
 
-      setRolePermissions((previous) => ({
-        ...previous,
-        [roleId]: data.permissions
-      }));
-
-    } catch (error) {
-
-      console.error(error);
-
-    }
-  };
-
-  // --------------------------------------------------
-  // Get roles for one user
-  // --------------------------------------------------
-
-  const getUserRoles = async (
-    userId: number
-  ) => {
-
-    try {
-
-      const response = await fetch(
-        `${API_URL}/users/${userId}/roles`,
-        {
-          method: 'GET',
-          credentials: 'include'
-        }
-      );
-
       const data = await response.json();
 
-      if (!response.ok) {
-
-        console.error(data.message);
-
-        return;
-      }
-
-      const rolesForUser: Role[] =
-        data.roles;
-
-      // Store user's roles
-      setUserRoles((previous) => ({
-        ...previous,
-        [userId]: rolesForUser
+      setUserRoles((previousRoles) => ({
+        ...previousRoles,
+        [userId]: data.roles || [],
       }));
-
-      // Get permissions for each role
-      await Promise.all(
-        rolesForUser.map((role) =>
-          getRolePermissions(role.id)
-        )
-      );
-
     } catch (error) {
-
-      console.error(error);
-
+      console.error(`Error fetching roles for user ${userId}:`, error);
     }
   };
 
-  // --------------------------------------------------
-  // Get all users
-  // --------------------------------------------------
-
+  // Fetch all users and their assigned roles
   const getUsers = async () => {
-
     try {
-
-      const response = await fetch(
-        `${API_URL}/users`,
-        {
-          method: 'GET',
-          credentials: 'include'
-        }
-      );
+      const response = await fetch(`${API_URL}/users`, {
+        method: 'GET',
+        credentials: 'include',
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
-
-        setMessage(
-          data.message ||
-          'Failed to retrieve users'
-        );
-
+        toast.error(data.message || 'Failed to retrieve users');
         return;
       }
 
-      setUsers(data.users);
+      const fetchedUsers: User[] = data.users || [];
+      setUsers(fetchedUsers);
 
-      // Get roles for every user
-      await Promise.all(
-        data.users.map((user: User) =>
-          getUserRoles(user.id)
-        )
-      );
-
+      await Promise.all(fetchedUsers.map((user) => getUserRoles(user.id)));
     } catch (error) {
-
       console.error(error);
-
-      setMessage(
-        'Unable to connect to the server'
-      );
+      toast.error('Unable to connect to the server');
     }
   };
 
-  // --------------------------------------------------
-  // Get all roles
-  // --------------------------------------------------
-
-  const getRoles = async () => {
-
-    try {
-
-      const response = await fetch(
-        `${API_URL}/roles`,
-        {
-          method: 'GET',
-          credentials: 'include'
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-
-        setMessage(
-          data.message ||
-          'Failed to retrieve roles'
-        );
-
-        return;
-      }
-
-      setRoles(data.roles);
-
-    } catch (error) {
-
-      console.error(error);
-
-      setMessage(
-        'Unable to retrieve roles'
-      );
-    }
-  };
-
-  // --------------------------------------------------
-  // Initial page load
-  // --------------------------------------------------
-
+  // Load users when the page opens
   useEffect(() => {
-
-    const loadData = async () => {
-
-      await Promise.all([
-        getUsers(),
-        getRoles()
-      ]);
-
-      setLoading(false);
-
+    const loadUsers = async () => {
+      try {
+        await getUsers();
+      } finally {
+        setLoading(false);
+      }
     };
 
-    loadData();
-
+    loadUsers();
   }, []);
 
-  // --------------------------------------------------
-  // Create user
-  // --------------------------------------------------
+  // Clear the form and close the modal
+  const closeCreateForm = () => {
+    setShowCreateForm(false);
+    setFirstName('');
+    setLastName('');
+    setEmail('');
+    setPassword('');
+  };
 
-  const handleCreateUser = async (
-    event: React.FormEvent
-  ) => {
-
+  // Create a user
+  const handleCreateUser = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    setMessage('');
+    setCreating(true);
 
     try {
-
-      const response = await fetch(
-        `${API_URL}/users`,
-        {
-          method: 'POST',
-
-          headers: {
-            'Content-Type': 'application/json'
-          },
-
-          credentials: 'include',
-
-          body: JSON.stringify({
-            firstName,
-            lastName,
-            email,
-            password
-          })
-        }
-      );
+      const response = await fetch(`${API_URL}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          password,
+        }),
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
-
-        setMessage(
-          data.message ||
-          'Failed to create user'
-        );
-
+        toast.error(data.message || 'Failed to create user');
         return;
       }
 
-      setMessage(
-        'User created successfully'
-      );
+      toast.success(`${firstName} ${lastName} was created`);
+      closeCreateForm();
 
-      // Clear form
-      setFirstName('');
-      setLastName('');
-      setEmail('');
-      setPassword('');
-
-      // Hide form
-      setShowCreateForm(false);
-
-      // Refresh users
+      // Refresh users and their roles
       await getUsers();
-
     } catch (error) {
-
       console.error(error);
-
-      setMessage(
-        'Unable to connect to the server'
-      );
+      toast.error('Unable to connect to the server');
+    } finally {
+      setCreating(false);
     }
   };
 
-  // --------------------------------------------------
-  // Assign role
-  // --------------------------------------------------
-
-  const handleAssignRole = async (
-    userId: number
-  ) => {
-
-    const roleId =
-      selectedRoles[userId];
-
-    if (!roleId) {
-
-      setMessage(
-        'Please select a role'
-      );
-
-      return;
-    }
-
-    setMessage('');
-
-    try {
-
-      const response = await fetch(
-       `${API_URL}/users/${userId}/roles`,
-        {
-          method: 'POST',
-
-          headers: {
-            'Content-Type': 'application/json'
-          },
-
-          credentials: 'include',
-
-          body: JSON.stringify({
-            roleId
-          })
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-
-        setMessage(
-          data.message ||
-          'Failed to assign role'
-        );
-
-        return;
-      }
-
-      setMessage(
-        data.message ||
-        'Role assigned successfully'
-      );
-
-      // Refresh user's roles
-      await getUserRoles(userId);
-
-      // Clear dropdown
-      setSelectedRoles((previous) => ({
-        ...previous,
-        [userId]: 0
-      }));
-
-    } catch (error) {
-
-      console.error(error);
-
-      setMessage(
-        'Unable to connect to the server'
-      );
-    }
-  };
-
-  // --------------------------------------------------
-  // Loading
-  // --------------------------------------------------
-
-  if (loading) {
-
+  // Filter users by name, email or role name
+  const searchText = search.toLowerCase();
+  const filteredUsers = users.filter((user) => {
+    const roles = userRoles[user.id] || [];
     return (
-      <p>
-        Loading users...
-      </p>
+      `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchText) ||
+      user.email.toLowerCase().includes(searchText) ||
+      roles.some((role) => role.name.toLowerCase().includes(searchText))
     );
-  }
-
-  // --------------------------------------------------
-  // UI
-  // --------------------------------------------------
+  });
 
   return (
-
-    <div>
-
-      <h1>Users</h1>
-
-      {message && (
-        <p>
-          {message}
-        </p>
-      )}
-
-      {/* ================================================= */}
-      {/* CREATE USER */}
-      {/* ================================================= */}
-
-      {hasPermission('create_users') && (
-
+    <div className="mx-auto max-w-6xl">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
+          <h1 className="text-3xl font-bold text-slate-900">Users</h1>
+          <p className="mt-1 text-slate-500">Manage who has access to your system</p>
+        </div>
 
-          {!showCreateForm ? (
+        {hasPermission('create_users') && (
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white shadow-sm transition hover:bg-indigo-500"
+          >
+            <Plus className="h-5 w-5" />
+            Create user
+          </button>
+        )}
+      </div>
 
-            <button
-              onClick={() =>
-                setShowCreateForm(true)
-              }
-            >
-              + Create User
-            </button>
+      {/* Table card */}
+      <div className="mt-8 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+        {/* Search */}
+        <div className="border-b border-slate-200 p-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by name, email or role..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className={`${inputClass} pl-10`}
+            />
+          </div>
+        </div>
 
-          ) : (
+        {loading ? (
+          // Skeleton: gray pulsing bars while loading
+          <div className="divide-y divide-slate-100">
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="flex animate-pulse items-center gap-3 px-6 py-4">
+                <div className="h-10 w-10 rounded-full bg-slate-200" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-40 rounded bg-slate-200" />
+                  <div className="h-3 w-56 rounded bg-slate-100" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          // Empty state
+          <div className="flex flex-col items-center py-16 text-center">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100">
+              <UsersIcon className="h-6 w-6 text-slate-400" />
+            </div>
+            <p className="mt-4 font-medium text-slate-900">
+              {search ? 'No matching users' : 'No users yet'}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              {search ? 'Try a different search.' : 'Create your first user to get started.'}
+            </p>
+          </div>
+        ) : (
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-6 py-3 font-medium">User</th>
+                <th className="px-6 py-3 font-medium">Roles</th>
+                <th className="hidden px-6 py-3 font-medium md:table-cell">Joined</th>
+                <th className="px-6 py-3"></th>
+              </tr>
+            </thead>
 
-            <div>
+            <tbody className="divide-y divide-slate-100">
+              {filteredUsers.map((user) => {
+                const roles = userRoles[user.id] || [];
 
-              <h2>
-                Create User
-              </h2>
+                return (
+                  <tr key={user.id} className="transition hover:bg-slate-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
+                          {user.first_name[0]}
+                          {user.last_name[0]}
+                        </div>
+                        <div className="min-w-0">
+                          <Link
+                            to={`/users/${user.id}`}
+                            className="font-medium text-slate-900 hover:text-indigo-600"
+                          >
+                            {user.first_name} {user.last_name}
+                          </Link>
+                          <p className="truncate text-sm text-slate-500">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
 
-              <form
-                onSubmit={
-                  handleCreateUser
-                }
+                    <td className="px-6 py-4">
+                      {roles.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {roles.map((role) => (
+                            <RoleBadge key={role.id} role={role} />
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-slate-400">No roles</span>
+                      )}
+                    </td>
+
+                    <td className="hidden px-6 py-4 text-sm text-slate-500 md:table-cell">
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </td>
+
+                    <td className="px-6 py-4 text-right">
+                      <Link
+                        to={`/users/${user.id}`}
+                        aria-label={`View ${user.first_name}`}
+                        className="inline-flex text-slate-400 hover:text-indigo-600"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Create user modal */}
+      {showCreateForm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+          onClick={closeCreateForm}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-slate-900">Create user</h2>
+              <button
+                onClick={closeCreateForm}
+                aria-label="Close"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-
-                  <label>
-                    First Name
+                  <label htmlFor="firstName" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    First name
                   </label>
-
-                  <br />
-
                   <input
+                    id="firstName"
                     type="text"
                     value={firstName}
-                    onChange={(event) =>
-                      setFirstName(
-                        event.target.value
-                      )
-                    }
+                    onChange={(event) => setFirstName(event.target.value)}
+                    required
+                    className={inputClass}
                   />
-
                 </div>
 
-                <br />
-
                 <div>
-
-                  <label>
-                    Last Name
+                  <label htmlFor="lastName" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Last name
                   </label>
-
-                  <br />
-
                   <input
+                    id="lastName"
                     type="text"
                     value={lastName}
-                    onChange={(event) =>
-                      setLastName(
-                        event.target.value
-                      )
-                    }
+                    onChange={(event) => setLastName(event.target.value)}
+                    required
+                    className={inputClass}
                   />
-
                 </div>
+              </div>
 
-                <br />
+              <div>
+                <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  className={inputClass}
+                />
+              </div>
 
-                <div>
+              <div>
+                <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  className={inputClass}
+                />
+              </div>
 
-                  <label>
-                    Email
-                  </label>
-
-                  <br />
-
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(event) =>
-                      setEmail(
-                        event.target.value
-                      )
-                    }
-                  />
-
-                </div>
-
-                <br />
-
-                <div>
-
-                  <label>
-                    Password
-                  </label>
-
-                  <br />
-
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(event) =>
-                      setPassword(
-                        event.target.value
-                      )
-                    }
-                  />
-
-                </div>
-
-                <br />
-
-                <button type="submit">
-                  Create User
-                </button>
-
-                {' '}
-
+              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-
-                    setShowCreateForm(false);
-
-                    setFirstName('');
-                    setLastName('');
-                    setEmail('');
-                    setPassword('');
-
-                  }}
+                  onClick={closeCreateForm}
+                  className="rounded-lg px-4 py-2.5 font-medium text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50"
                 >
                   Cancel
                 </button>
-
-              </form>
-
-            </div>
-
-          )}
-
-        </div>
-
-      )}
-
-      <br />
-
-      {/* ================================================= */}
-      {/* USERS */}
-      {/* ================================================= */}
-
-      <h2>
-        All Users
-      </h2>
-
-      {users.length === 0 ? (
-
-        <p>
-          No users found.
-        </p>
-
-      ) : (
-
-        <table>
-
-          <thead>
-
-            <tr>
-
-              <th>
-                ID
-              </th>
-
-              <th>
-                First Name
-              </th>
-
-              <th>
-                Last Name
-              </th>
-
-              <th>
-                Email
-              </th>
-
-              <th>
-                Current Roles
-              </th>
-
-              <th>
-                Permissions
-              </th>
-
-              {hasPermission(
-                'assign_roles'
-              ) && (
-
-                <th>
-                  Assign Role
-                </th>
-
-              )}
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {users.map((user) => {
-
-              const currentRoles =
-                userRoles[user.id] || [];
-
-              /*
-               * Combine permissions from
-               * all of the user's roles.
-               */
-
-              const permissions =
-                currentRoles.flatMap(
-                  (role) =>
-                    rolePermissions[
-                      role.id
-                    ] || []
-                );
-
-              /*
-               * Remove duplicate permissions.
-               */
-
-              const uniquePermissions =
-                permissions.filter(
-                  (
-                    permission,
-                    index,
-                    array
-                  ) =>
-                    index ===
-                    array.findIndex(
-                      (item) =>
-                        item.id ===
-                        permission.id
-                    )
-                );
-
-              return (
-
-                <tr
-                  key={user.id}
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-70"
                 >
-
-                  {/* ID */}
-
-                  <td>
-                    {user.id}
-                  </td>
-
-                  {/* First Name */}
-
-                  <td>
-                    {user.first_name}
-                  </td>
-
-                  {/* Last Name */}
-
-                  <td>
-                    {user.last_name}
-                  </td>
-
-                  {/* Email */}
-
-                  <td>
-                    {user.email}
-                  </td>
-
-                  {/* ================================= */}
-                  {/* CURRENT ROLES */}
-                  {/* ================================= */}
-
-                  <td>
-
-                    {currentRoles.length >
-                    0 ? (
-
-                      currentRoles.map(
-                        (role) => (
-
-                          <div
-                            key={role.id}
-                          >
-                            {role.name}
-                          </div>
-
-                        )
-                      )
-
-                    ) : (
-
-                      <span>
-                        No roles
-                      </span>
-
-                    )}
-
-                  </td>
-
-                  {/* ================================= */}
-                  {/* PERMISSIONS */}
-                  {/* ================================= */}
-
-                  <td>
-
-                    {uniquePermissions.length >
-                    0 ? (
-
-                      uniquePermissions.map(
-                        (permission) => (
-
-                          <div
-                            key={
-                              permission.id
-                            }
-                          >
-
-                            ✓{' '}
-
-                            {permission.name}
-
-                          </div>
-
-                        )
-                      )
-
-                    ) : (
-
-                      <span>
-                        No permissions
-                      </span>
-
-                    )}
-
-                  </td>
-
-                  {/* ================================= */}
-                  {/* ASSIGN ROLE */}
-                  {/* ================================= */}
-
-                  {hasPermission(
-                    'assign_roles'
-                  ) && (
-
-                    <td>
-
-                      <select
-                        value={
-                          selectedRoles[
-                            user.id
-                          ] || ''
-                        }
-                        onChange={(event) =>
-                          setSelectedRoles({
-                            ...selectedRoles,
-
-                            [user.id]:
-                              Number(
-                                event.target
-                                  .value
-                              )
-                          })
-                        }
-                      >
-
-                        <option value="">
-                          Select role
-                        </option>
-
-                        {roles
-                          .filter(
-                            (role) => {
-
-                              return !currentRoles.some(
-                                (currentRole) =>
-                                  currentRole.id ===
-                                  role.id
-                              );
-
-                            }
-                          )
-                          .map(
-                            (role) => (
-
-                              <option
-                                key={
-                                  role.id
-                                }
-                                value={
-                                  role.id
-                                }
-                              >
-                                {role.name}
-                              </option>
-
-                            )
-                          )}
-
-                      </select>
-
-                      {' '}
-
-                      <button
-                        onClick={() =>
-                          handleAssignRole(
-                            user.id
-                          )
-                        }
-                      >
-                        Assign Role
-                      </button>
-
-                    </td>
-
-                  )}
-
-                </tr>
-
-              );
-
-            })}
-
-          </tbody>
-
-        </table>
-
+                  {creating && <LoaderCircle className="h-5 w-5 animate-spin" />}
+                  Create user
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
-
     </div>
   );
 }
