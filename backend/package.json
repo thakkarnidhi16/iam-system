@@ -6,7 +6,10 @@
     "dev": "tsx watch src/main.ts",
     "build": "tsc",
     "start": "node dist/main.js",
-    "test": "vitest run tests/unit"
+    "test": "vitest run tests/unit",
+    "migrate": "tsx src/database/migrate.ts",
+    "migrate:down": "tsx src/database/migrate.ts down",
+    "migrate:create": "node-pg-migrate create --migrations-dir migrations --migration-file-language sql"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +20,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "node-pg-migrate": "^9.0.0",
     "nodemailer": "^9.0.6",
     "pg": "^8.22.0"
   },
